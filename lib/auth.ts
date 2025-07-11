@@ -54,3 +54,49 @@ export async function verifyUser(email: string, password: string) {
   }
   return null
 }
+
+export async function createUser(email: string, password: string, name: string) {
+  // Check if user already exists
+  const existingUser = users.find((u) => u.email === email)
+  if (existingUser) {
+    return null // User already exists
+  }
+
+  // Create new user (in a real app, hash the password)
+  const newUser = {
+    id: users.length + 1,
+    email,
+    password, // In production, hash this password
+    name,
+  }
+
+  users.push(newUser)
+
+  // Return user without password
+  const { password: _, ...userWithoutPassword } = newUser
+  return userWithoutPassword
+}
+
+export async function findOrCreateOAuthUser(email: string, name: string, provider: string, providerId: string) {
+  // Check if user exists by email
+  let user = users.find((u) => u.email === email)
+
+  if (!user) {
+    // Create new user for OAuth
+    const newUser = {
+      id: users.length + 1,
+      email,
+      password: "", // OAuth users don't have passwords
+      name,
+      provider,
+      providerId,
+    }
+
+    users.push(newUser as any)
+    user = newUser as any
+  }
+
+  // Return user without password
+  const { password: _, ...userWithoutPassword } = user
+  return userWithoutPassword
+}

@@ -12,14 +12,62 @@ import { Separator } from "@/components/ui/separator"
 import { Eye, EyeOff, Github, Mail, AlertCircle } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import Link from "next/link"
-import { LoginSuccessModal } from "@/components/login-success-modal"
+import { SignupSuccessModal } from "@/components/signup-success-modal"
 
-export default function Component() {
+export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [showSuccess, setShowSuccess] = useState(false)
   const [user, setUser] = useState<{ name: string; email: string } | null>(null)
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    setIsLoading(true)
+    setError("")
+
+    const formData = new FormData(e.currentTarget)
+    const name = formData.get("name") as string
+    const email = formData.get("email") as string
+    const password = formData.get("password") as string
+    const confirmPassword = formData.get("confirmPassword") as string
+
+    // Client-side validation
+    if (password !== confirmPassword) {
+      setError("Passwords do not match")
+      setIsLoading(false)
+      return
+    }
+
+    try {
+      const response = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ name, email, password }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        setUser(data.user)
+        setShowSuccess(true)
+      } else {
+        setError(data.error || "Signup failed")
+      }
+    } catch (err) {
+      setError("Network error. Please try again.")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleSuccessClose = () => {
+    setShowSuccess(false)
+    window.location.href = "/dashboard"
+  }
 
   const handleOAuthLogin = async (provider: "github" | "google") => {
     try {
@@ -46,45 +94,6 @@ export default function Component() {
     }
   }
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    setIsLoading(true)
-    setError("")
-
-    const formData = new FormData(e.currentTarget)
-    const email = formData.get("email") as string
-    const password = formData.get("password") as string
-
-    try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password }),
-      })
-
-      const data = await response.json()
-
-      if (response.ok) {
-        setUser(data.user)
-        setShowSuccess(true)
-      } else {
-        setError(data.error || "Login failed")
-      }
-    } catch (err) {
-      setError("Network error. Please try again.")
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const handleSuccessClose = () => {
-    setShowSuccess(false)
-    // Here you could redirect to dashboard or another page
-    window.location.href = "/dashboard"
-  }
-
   return (
     <>
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 p-4">
@@ -93,8 +102,8 @@ export default function Component() {
             <div className="mx-auto w-12 h-12 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center mb-4">
               <div className="w-6 h-6 bg-white rounded-md"></div>
             </div>
-            <CardTitle className="text-2xl font-bold tracking-tight">Welcome back</CardTitle>
-            <CardDescription className="text-slate-600">Sign in to your account to continue</CardDescription>
+            <CardTitle className="text-2xl font-bold tracking-tight">Create your account</CardTitle>
+            <CardDescription className="text-slate-600">Enter your details to get started</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             {error && (
@@ -103,18 +112,6 @@ export default function Component() {
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
-
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <p className="text-sm text-blue-800 font-medium mb-2">Demo Credentials:</p>
-              <div className="text-xs text-blue-700 space-y-1">
-                <p>
-                  <strong>Email:</strong> demo@example.com
-                </p>
-                <p>
-                  <strong>Password:</strong> password123
-                </p>
-              </div>
-            </div>
 
             <div className="grid grid-cols-2 gap-4">
               <Button
@@ -148,6 +145,21 @@ export default function Component() {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
+                <Label htmlFor="name" className="text-sm font-medium">
+                  Full name
+                </Label>
+                <Input
+                  id="name"
+                  name="name"
+                  type="text"
+                  placeholder="Enter your full name"
+                  className="h-11"
+                  required
+                  disabled={isLoading}
+                />
+              </div>
+
+              <div className="space-y-2">
                 <Label htmlFor="email" className="text-sm font-medium">
                   Email address
                 </Label>
@@ -171,10 +183,11 @@ export default function Component() {
                     id="password"
                     name="password"
                     type={showPassword ? "text" : "password"}
-                    placeholder="Enter your password"
+                    placeholder="Create a password"
                     className="h-11 pr-10"
                     required
                     disabled={isLoading}
+                    minLength={6}
                   />
                   <Button
                     type="button"
@@ -193,16 +206,50 @@ export default function Component() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <Checkbox id="remember" disabled={isLoading} />
-                  <Label htmlFor="remember" className="text-sm text-slate-600">
-                    Remember me
-                  </Label>
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword" className="text-sm font-medium">
+                  Confirm password
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="confirmPassword"
+                    name="confirmPassword"
+                    type={showConfirmPassword ? "text" : "password"}
+                    placeholder="Confirm your password"
+                    className="h-11 pr-10"
+                    required
+                    disabled={isLoading}
+                    minLength={6}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    disabled={isLoading}
+                  >
+                    {showConfirmPassword ? (
+                      <EyeOff className="h-4 w-4 text-slate-500" />
+                    ) : (
+                      <Eye className="h-4 w-4 text-slate-500" />
+                    )}
+                  </Button>
                 </div>
-                <Link href="/forgot-password" className="text-sm text-blue-600 hover:text-blue-500 font-medium">
-                  Forgot password?
-                </Link>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Checkbox id="terms" required disabled={isLoading} />
+                <Label htmlFor="terms" className="text-sm text-slate-600">
+                  I agree to the{" "}
+                  <Link href="/terms" className="text-blue-600 hover:text-blue-500 font-medium">
+                    Terms of Service
+                  </Link>{" "}
+                  and{" "}
+                  <Link href="/privacy" className="text-blue-600 hover:text-blue-500 font-medium">
+                    Privacy Policy
+                  </Link>
+                </Label>
               </div>
 
               <Button
@@ -210,7 +257,7 @@ export default function Component() {
                 className="w-full h-11 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
                 disabled={isLoading}
               >
-                {isLoading ? "Signing in..." : "Sign in"}
+                {isLoading ? "Creating account..." : "Create account"}
               </Button>
             </form>
           </CardContent>
@@ -218,16 +265,16 @@ export default function Component() {
           <CardFooter className="flex flex-col space-y-4 pt-6">
             <Separator />
             <div className="text-center text-sm text-slate-600">
-              {"Don't have an account? "}
-              <Link href="/signup" className="text-blue-600 hover:text-blue-500 font-medium">
-                Sign up
+              Already have an account?{" "}
+              <Link href="/" className="text-blue-600 hover:text-blue-500 font-medium">
+                Sign in
               </Link>
             </div>
           </CardFooter>
         </Card>
       </div>
 
-      <LoginSuccessModal isOpen={showSuccess} user={user} onClose={handleSuccessClose} />
+      <SignupSuccessModal isOpen={showSuccess} user={user} onClose={handleSuccessClose} />
     </>
   )
 }
